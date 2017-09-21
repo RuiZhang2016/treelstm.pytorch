@@ -43,8 +43,8 @@ def build_vocab(filenames, vocabfile):
     for filename in filenames:
         with open(filename,'r') as f:
             for line in f:
-                tokens = line.rstrip('\n').split(' ')
-                vocab |= set(tokens)
+                tokens = line.rstrip('\n').split('#*#')
+                vocab |= set(tokens[0:len(tokens)-1])
     with open(vocabfile,'w') as f:
         for token in sorted(vocab):
             f.write(token+'\n')
@@ -52,11 +52,6 @@ def build_vocab(filenames, vocabfile):
 # mapping from scalar to vector
 def map_label_to_target(label,num_classes):
     target = torch.zeros(1,num_classes)
-    ceil = int(math.ceil(label))
     floor = int(math.floor(label))
-    if ceil==floor:
-        target[0][floor-1] = 1
-    else:
-        target[0][floor-1] = ceil - label
-        target[0][ceil-1] = label - floor
+    target[0][floor] = 1
     return target

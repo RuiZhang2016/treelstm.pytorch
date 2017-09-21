@@ -14,13 +14,13 @@ class SICKDataset(data.Dataset):
         self.vocab = vocab
         self.num_classes = num_classes
 
-        self.lsentences = self.read_sentences(os.path.join(path,'a.toks'))
-        self.rsentences = self.read_sentences(os.path.join(path,'b.toks'))
+        self.lsentences = self.read_sentences(os.path.join(path,'toks.a'))
+        self.rsentences = self.read_sentences(os.path.join(path,'toks.b'))
 
-        self.ltrees = self.read_trees(os.path.join(path,'a.parents'))
-        self.rtrees = self.read_trees(os.path.join(path,'b.parents'))
+        self.ltrees = self.read_trees(os.path.join(path,'parents.a'))
+        self.rtrees = self.read_trees(os.path.join(path,'parents.b'))
 
-        self.labels = self.read_labels(os.path.join(path,'sim.txt'))
+        self.labels = self.read_labels(os.path.join(path,'sims'))
 
         self.size = self.labels.size(0)
 
@@ -41,7 +41,8 @@ class SICKDataset(data.Dataset):
         return sentences
 
     def read_sentence(self, line):
-        indices = self.vocab.convertToIdx(line.split(), Constants.UNK_WORD)
+        sents = line.split('#*#')
+        indices = self.vocab.convertToIdx(sents[0:len(sents)-1], Constants.UNK_WORD)
         return torch.LongTensor(indices)
 
     def read_trees(self, filename):

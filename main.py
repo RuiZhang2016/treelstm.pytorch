@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable as Var
+from nltk.tokenize import word_tokenize
+import torch.nn.functional as F
 
 # IMPORT CONSTANTS
 import Constants
@@ -31,7 +33,7 @@ def main():
     global args
     args = parse_args()
     args.input_dim, args.mem_dim = 300, 150
-    args.hidden_dim, args.num_classes = 50, 5
+    args.hidden_dim, args.num_classes = 20, 2
     args.cuda = args.cuda and torch.cuda.is_available()
     if args.sparse and args.wd!=0:
         print('Sparsity and weight decay are incompatible, pick one!')
@@ -53,8 +55,8 @@ def main():
     # write unique words from all token files
     sick_vocab_file = os.path.join(args.data,'sick.vocab')
     if not os.path.isfile(sick_vocab_file):
-        token_files_a = [os.path.join(split,'a.toks') for split in [train_dir,dev_dir,test_dir]]
-        token_files_b = [os.path.join(split,'b.toks') for split in [train_dir,dev_dir,test_dir]]
+        token_files_a = [os.path.join(split,'toks.a') for split in [train_dir,dev_dir,test_dir]]
+        token_files_b = [os.path.join(split,'toks.b') for split in [train_dir,dev_dir,test_dir]]
         token_files = token_files_a+token_files_b
         sick_vocab_file = os.path.join(args.data,'sick.vocab')
         build_vocab(token_files, sick_vocab_file)
@@ -62,7 +64,7 @@ def main():
     # get vocab object from vocab file previously written
     vocab = Vocab(filename=sick_vocab_file, data=[Constants.PAD_WORD, Constants.UNK_WORD, Constants.BOS_WORD, Constants.EOS_WORD])
     print('==> SICK vocabulary size : %d ' % vocab.size())
-
+                            
     # load SICK dataset splits
     train_file = os.path.join(args.data,'sick_train.pth')
     if os.path.isfile(train_file):
@@ -117,8 +119,25 @@ def main():
         for idx, item in enumerate([Constants.PAD_WORD, Constants.UNK_WORD, Constants.BOS_WORD, Constants.EOS_WORD]):
             emb[idx].zero_()
         for word in vocab.labelToIdx.keys():
-            if glove_vocab.getIndex(word):
-                emb[vocab.getIndex(word)] = glove_emb[glove_vocab.getIndex(word)]
+            word_new = word.decode("utf8")
+            idx_set = [ glove_vocab.getIndex(token)  for token in word_tokenize(word_new)]       
+            idx_set = [ id for id in idx_set if id is not None] 
+
+            if len(idx_set) != 0:
+                idx_set = torch.LongTensor(idx_set)
+                sum_emb = F.torch.sum(glove_emb.index_select(0,idx_set),0)
+            else:
+                sum_emb = glove_emb[1]*0
+#            for token in word_tokenize(word_new):
+#                idx = glove_vocab.getIndex(token)
+#                if idx is not None:
+#                    if sum_emb is None:
+#                        sum_emb = glove_emb[idx]
+#                    else:
+#                        sum_emb += glove_emb[idx]
+
+            
+            emb[vocab.getIndex(word)] = sum_emb
         torch.save(emb, emb_file)
     # plug these into embedding matrix inside model
     if args.cuda:
@@ -132,18 +151,21 @@ def main():
     for epoch in range(args.epochs):
         train_loss             = trainer.train(train_dataset)
         train_loss, train_pred = trainer.test(train_dataset)
+        print(train_pred)
         dev_loss, dev_pred     = trainer.test(dev_dataset)
+        print(dev_pred)
         test_loss, test_pred   = trainer.test(test_dataset)
-
+        
+        
         train_pearson = metrics.pearson(train_pred,train_dataset.labels)
-        train_mse = metrics.mse(train_pred,train_dataset.labels)
-        print('==> Train    Loss: {}\tPearson: {}\tMSE: {}'.format(train_loss,train_pearson,train_mse))
+        train_mse = metrics.accuracy(train_pred,train_dataset.labels)
+        print('==> Train    Loss: {}\tPearson: {}\tL1: {}'.format(train_loss,train_pearson,train_mse))
         dev_pearson = metrics.pearson(dev_pred,dev_dataset.labels)
-        dev_mse = metrics.mse(dev_pred,dev_dataset.labels)
-        print('==> Dev      Loss: {}\tPearson: {}\tMSE: {}'.format(dev_loss,dev_pearson,dev_mse))
+        dev_mse = metrics.accuracy(dev_pred,dev_dataset.labels)
+        print('==> Dev      Loss: {}\tPearson: {}\tL1: {}'.format(dev_loss,dev_pearson,dev_mse))
         test_pearson = metrics.pearson(test_pred,test_dataset.labels)
-        test_mse = metrics.mse(test_pred,test_dataset.labels)
-        print('==> Test     Loss: {}\tPearson: {}\tMSE: {}'.format(test_loss,test_pearson,test_mse))
+        test_mse = metrics.accuracy(test_pred,test_dataset.labels)
+        print('==> Test     Loss: {}\tPearson: {}\tL1: {}'.format(test_loss,test_pearson,test_mse))
 
         if best < test_pearson:
             best = test_pearson

@@ -12,7 +12,7 @@ def parse_args():
                         help='Name to identify experiment')
     parser.add_argument('--batchsize', default=25, type=int,
                         help='batchsize for optimizer updates')
-    parser.add_argument('--epochs', default=15, type=int,
+    parser.add_argument('--epochs', default=13, type=int,
                         help='number of total epochs to run')
     parser.add_argument('--lr', default=0.01, type=float,
                         metavar='LR', help='initial learning rate')

@@ -50,13 +50,23 @@ class ChildSumTreeLSTM(nn.Module):
 
     def forward(self, tree, inputs):
         # add singleton dimension for future call to node_forward
-        embs = F.torch.unsqueeze(self.emb(inputs),1)
+        embs = F.torch.unsqueeze(self.emb(inputs), 1)
         for idx in xrange(tree.num_children):
-            _ = self.forward(tree.children[idx], inputs)
+            _ = self.sub_forward(tree.children[idx], embs)
         child_c, child_h = self.get_child_states(tree)
+        
         tree.state = self.node_forward(embs[tree.idx], child_c, child_h)
         return tree.state
+    
+    def sub_forward(self, tree, embs):
+        # add singleton dimension for future call to node_forward
+        for idx in xrange(tree.num_children):
+            _ = self.sub_forward(tree.children[idx], embs)
+        child_c, child_h = self.get_child_states(tree)
 
+        tree.state = self.node_forward(embs[tree.idx], child_c, child_h)
+        return tree.state
+    
     def get_child_states(self, tree):
         # add extra singleton dimension in middle...
         # because pytorch needs mini batches... :sad:

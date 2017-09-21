@@ -20,6 +20,8 @@ class Trainer(object):
         indices = torch.randperm(len(dataset))
         for idx in tqdm(xrange(len(dataset)),desc='Training epoch '+str(self.epoch+1)+''):
             ltree,lsent,rtree,rsent,label = dataset[indices[idx]]
+            if len(lsent) == 0 or len(rsent) == 0:
+                continue
             linput, rinput = Var(lsent), Var(rsent)
             target = Var(map_label_to_target(label,dataset.num_classes))
             if self.args.cuda:
@@ -41,9 +43,11 @@ class Trainer(object):
         self.model.eval()
         loss = 0
         predictions = torch.zeros(len(dataset))
-        indices = torch.arange(1,dataset.num_classes+1)
+        indices = torch.arange(0,dataset.num_classes)
         for idx in tqdm(xrange(len(dataset)),desc='Testing epoch  '+str(self.epoch)+''):
             ltree,lsent,rtree,rsent,label = dataset[idx]
+            if len(lsent) == 0 or  len(rsent) == 0:
+                continue
             linput, rinput = Var(lsent, volatile=True), Var(rsent, volatile=True)
             target = Var(map_label_to_target(label,dataset.num_classes), volatile=True)
             if self.args.cuda:

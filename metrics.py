@@ -20,3 +20,8 @@ class Metrics():
         x = Var(deepcopy(predictions), volatile=True)
         y = Var(deepcopy(labels), volatile=True)
         return nn.MSELoss()(x,y).data[0]
+    
+    def accuracy(self, pred, labels):
+        x = Var(deepcopy(pred), volatile=True)
+        y = Var(deepcopy(labels), volatile=True)
+        return nn.L1Loss()(x,y).data[0]
